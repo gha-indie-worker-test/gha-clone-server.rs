@@ -1,0 +1,44 @@
+name: Test organization isolation
+
+on:
+  pull_request:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: test-org-isolation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolation:
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - name: Enforce test-organization isolation
+        uses: gha-indie-worker/.github/test-org-isolation@3c90f210cd23bcc8c129828bc21ee35a87c470df
+        with:
+          root: .
+          repository: ${{ github.repository }}
+          source-sha: ${{ github.sha }}
+
+      - name: Publish digest-bound isolation evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: test-org-isolation-${{ github.sha }}
+          path: .test-org-isolation/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
