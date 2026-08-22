@@ -140,6 +140,8 @@ claim before webhook execution may be enabled.
 The independent lane rejects:
 
 - branch/tag execution instead of a 40-character lowercase hexadecimal commit SHA;
+- workflow permissions other than the strictly restrictive empty mapping
+  `permissions: {}`; the fixed-profile lane never receives a GitHub token;
 - secret/OIDC expressions in `env`, `with`, or commands;
 - dynamic matrices and conditional jobs/steps;
 - arbitrary marketplace actions;

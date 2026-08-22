@@ -206,7 +206,9 @@ pub fn build_plan(
 
     let mut workflow_reasons = Vec::new();
     for key in root.keys().filter_map(Value::as_str) {
-        if !matches!(key, "name" | "run-name" | "on" | "jobs") {
+        let empty_permissions = key == "permissions"
+            && matches!(mapping_get(root, "permissions"), Some(Value::Mapping(value)) if value.is_empty());
+        if !matches!(key, "name" | "run-name" | "on" | "jobs") && !empty_permissions {
             workflow_reasons.push(format!(
                 "workflow-level {key} is unsupported by the independent lane"
             ));
@@ -1087,6 +1089,37 @@ jobs:
             .independent_notes
             .iter()
             .any(|note| note.contains("fixed profile pins")));
+    }
+
+    #[test]
+    fn empty_workflow_permissions_are_safe_but_other_permissions_fail_closed() {
+        let empty = build_plan(
+            &request(
+                r#"
+permissions: {}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps: [{ run: "cargo test" }]
+"#,
+            ),
+            &PlannerLimits::default(),
+        )
+        .expect("empty permissions plan");
+        assert!(empty.independent_executable);
+
+        for permissions in ["read-all", "{ contents: read }"] {
+            let workflow = format!(
+                "permissions: {permissions}\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps: [{{ run: cargo test }}]\n"
+            );
+            let plan = build_plan(&request(&workflow), &PlannerLimits::default())
+                .expect("nonempty permissions remain a valid but unsupported plan");
+            assert!(!plan.independent_executable);
+            assert!(plan.jobs[0]
+                .independent_reasons
+                .iter()
+                .any(|reason| reason.contains("workflow-level permissions")));
+        }
     }
 
     #[test]
