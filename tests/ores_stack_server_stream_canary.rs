@@ -43,7 +43,11 @@ fn checkout_exact_head() -> TempCheckout {
         "git",
         &["fetch", "--quiet", "--depth=1", "origin", ORES_STACK_SHA],
     );
-    run(&root, "git", &["checkout", "--quiet", "--detach", "FETCH_HEAD"]);
+    run(
+        &root,
+        "git",
+        &["checkout", "--quiet", "--detach", "FETCH_HEAD"],
+    );
 
     let output = Command::new("git")
         .args(["rev-parse", "HEAD"])
